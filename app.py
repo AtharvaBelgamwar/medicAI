@@ -13,9 +13,14 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Use the Google Cloud Vision API client by securely loading the service account JSON from Streamlit Secrets
 def get_vision_client():
+    # Convert the AttrDict to a regular dictionary before dumping to JSON
+    service_account_info = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    
     with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.json') as temp_file:
-        temp_file.write(json.dumps(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]))
+        # Convert the dictionary to a JSON string before writing it
+        temp_file.write(json.dumps(service_account_info))
         temp_file_path = temp_file.name
+    
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_file_path
     return vision.ImageAnnotatorClient()
 
