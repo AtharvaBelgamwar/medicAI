@@ -48,7 +48,7 @@ def preprocess_image(image_path):
     return preprocessed_image_path
 
 # Streamlit UI
-st.title("Medical Prescription Analyzer")
+st.title("MedicAI")
 st.write("Upload an image of a prescription, and click **Analyze** to get the results.")
 
 # File uploader in Streamlit
