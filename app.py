@@ -15,6 +15,7 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 def get_vision_client():
     # Convert the AttrDict to a regular dictionary before dumping to JSON
     service_account_info = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    service_account_info['private_key'] = service_account_info['private_key'].replace("\\n", "\n")
     
     with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.json') as temp_file:
         # Convert the dictionary to a JSON string before writing it
