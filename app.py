@@ -7,8 +7,8 @@ from google.oauth2 import service_account
 import google.generativeai as genai
 from PIL import Image
 import tempfile
-import streamlit.components.v1 as components
-# Set up environment variables from Streamlit SecretsS
+
+# Set up environment variables from Streamlit Secrets
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 google_places_api_key = st.secrets["MAPS_API"]
 
@@ -23,70 +23,25 @@ def get_vision_client():
 # Initialize the Vision API client
 client = get_vision_client()
 
-# Fetch the current latitude and longitude using ipinfo.io
-def show_browser_location():
-    js_code = """
-    <script>
-    function copyToClipboard(text) {
-        var input = document.createElement('textarea');
-        input.innerHTML = text;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        alert('Copied to clipboard: ' + text);
-    }
-
-    navigator.geolocation.getCurrentPosition(function(position) {
-        const coords = position.coords;
-        const lat = coords.latitude;
-        const lon = coords.longitude;
-        const locationText = "Latitude: " + lat + "\\nLongitude: " + lon;
-        document.body.innerHTML = locationText + "<br><br>";
-        document.body.innerHTML += '<button onclick="copyToClipboard(\\'' + locationText + '\\')">Copy Location</button>';
-    }, function(error) {
-        document.body.innerHTML = "error";
-    });
-    </script>
-    """
-    components.html(js_code, height=100)
-
-# Fallback to IP-based geolocation using ipinfo.io
-def get_ipinfo_location():
-    try:
-        response = requests.get("https://ipinfo.io/json")
+# Fetch latitude and longitude based on pincode using Google Geocoding API
+def get_lat_long_from_pincode(pincode):
+    url = f"https://maps.googleapis.com/maps/api/geocode/json?address={pincode}&key={google_places_api_key}"
+    response = requests.get(url)
+    if response.status_code == 200:
         data = response.json()
-        if 'loc' in data:
-            latitude, longitude = data['loc'].split(',')
-            return latitude, longitude
+        if len(data['results']) > 0:
+            location = data['results'][0]['geometry']['location']
+            return location['lat'], location['lng']
         else:
-            st.error("Could not fetch location from IP info.")
+            st.error("Couldn't fetch location. Please enter a valid pincode.")
             return None, None
-    except Exception as e:
-        st.error(f"Error fetching location from IP info: {str(e)}")
+    else:
+        st.error(f"Error fetching location (status code: {response.status_code})")
         return None, None
 
-# Main location function
-def get_location():
-    st.write("Fetching your location from browser using HTML5 Geolocation...")
-
-    # Display location in the browser
-    show_browser_location()
-
-    # Prompt user to manually input the displayed location
-    st.write("If your browser shows your latitude and longitude above, you can copy them using the 'Copy Location' button, then paste them below.")
-    latitude = st.text_input("Enter your latitude (paste from clipboard)", "")
-    longitude = st.text_input("Enter your longitude (paste from clipboard)", "")
-
-    # If the user did not input values, fall back to IP-based geolocation
-    if not latitude or not longitude:
-        st.warning("Could not fetch location via browser. Trying IP-based geolocation...")
-        latitude, longitude = get_ipinfo_location()
-    
-    return latitude, longitude
-
 # Function to find nearby doctors using Google Places API
-def find_nearby_doctors(location, radius=20000):
+def find_nearby_doctors(lat, lon, radius=20000):
+    location = f"{lat},{lon}"
     url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     params = {
         "location": location,
@@ -96,17 +51,16 @@ def find_nearby_doctors(location, radius=20000):
     }
     response = requests.get(url, params=params)
     if response.status_code == 200:
-        results = response.json().get("results", [])
-        return results
+        return response.json().get("results", [])
     else:
-        st.error(f"Error: Unable to fetch nearby doctors (Status code: {response.status_code})")
+        st.error(f"Error: Unable to fetch nearby doctors (status code: {response.status_code})")
         return None
 
-# Preprocess the image using PIL (no need for OpenCV)
+# Preprocess the image using PIL
 def preprocess_image(image_path):
     image = Image.open(image_path)
     gray_image = image.convert('L')  # Convert to grayscale
-    gray_image.save(image_path+ ".jpg" )
+    gray_image.save(image_path + ".jpg")
     return image_path
 
 # Function to display doctors as clickable cards
@@ -139,7 +93,14 @@ def display_doctors(doctors):
 # Streamlit UI
 st.title("MedicAI")
 
-# File uploader for prescription image
+# Step 1: Ask for the user's pincode
+pincode = st.text_input("Enter your pincode for doctor's location", "")
+lat, lon = None, None
+
+if pincode:
+    lat, lon = get_lat_long_from_pincode(pincode)
+
+# Step 2: File uploader for prescription image
 uploaded_file = st.file_uploader("Upload a prescription image...", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
@@ -190,7 +151,7 @@ if uploaded_file is not None:
         else:
             st.error("No text detected in the uploaded image.")
 
-# Form for user input on symptoms and information
+# Step 3: Form for user input on symptoms and information
 with st.form("user_info_form"):
     st.write("### Provide Information for Diagnosis")
     name = st.text_input("Your Name")
@@ -233,21 +194,15 @@ if submitted:
         st.write("### Diagnosis and Suggested Prescription")
         st.write(diagnosis_response.text)
 
-        # Fetch and display the current location
-        latitude, longitude = get_location()
-        st.write(f"Latitude: {latitude}, Longitude: {longitude}")
-        if latitude and longitude:
-
-            # Find and display nearby doctors
-            user_location = f"{latitude},{longitude}"
-            doctors = find_nearby_doctors(user_location)
-
+        # If user hasn't consulted a doctor, fetch nearby doctors using the pincode
+        if visited_doctor == "No" and lat and lon:
+            st.write(f"### Nearby Doctors")
+            doctors = find_nearby_doctors(lat, lon)
             if doctors:
-                st.write(f"### Nearby Doctors")
                 display_doctors(doctors)
             else:
                 st.error("No doctors found near your location.")
-        else:
-            st.error("Unable to fetch location. Please try again.")
+        elif visited_doctor == "Yes":
+            st.write("You've already consulted a doctor.")
     else:
         st.error("Please fill out the required fields: Name, Age, and Symptoms.")
