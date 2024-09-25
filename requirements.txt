@@ -3,3 +3,4 @@ opencv-python-headless
 Pillow
 google-cloud-vision
 google-generativeai
+json

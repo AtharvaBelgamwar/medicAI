@@ -6,7 +6,7 @@ from google.cloud.vision_v1 import types
 import google.generativeai as genai
 from PIL import Image
 import tempfile
-
+import json
 # Set up environment variables from Streamlit Secrets
 # Streamlit will automatically handle these once set in the Secrets section of the cloud deployment
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -14,7 +14,7 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 # Use the Google Cloud Vision API client by securely loading the service account JSON from Streamlit Secrets
 def get_vision_client():
     with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.json') as temp_file:
-        temp_file.write(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+        temp_file.write(json.dumps(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]))
         temp_file_path = temp_file.name
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_file_path
     return vision.ImageAnnotatorClient()
