@@ -7,8 +7,8 @@ from google.oauth2 import service_account
 import google.generativeai as genai
 from PIL import Image
 import tempfile
-
-# Set up environment variables from Streamlit Secrets
+import streamlit.components.v1 as components
+# Set up environment variables from Streamlit SecretsS
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 google_places_api_key = st.secrets["MAPS_API"]
 
@@ -24,25 +24,66 @@ def get_vision_client():
 client = get_vision_client()
 
 # Fetch the current latitude and longitude using ipinfo.io
-def get_location():
-    url = f"https://www.googleapis.com/geolocation/v1/geolocate?key={google_places_api_key}"
-    
-    try:
-        # Send a request to Google Geolocation API
-        response = requests.post(url, json={})
-        data = response.json()
+def show_browser_location():
+    js_code = """
+    <script>
+    function copyToClipboard(text) {
+        var input = document.createElement('textarea');
+        input.innerHTML = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        alert('Copied to clipboard: ' + text);
+    }
 
-        # Extract latitude and longitude from the response
-        if 'location' in data:
-            latitude = data['location']['lat']
-            longitude = data['location']['lng']
+    navigator.geolocation.getCurrentPosition(function(position) {
+        const coords = position.coords;
+        const lat = coords.latitude;
+        const lon = coords.longitude;
+        const locationText = "Latitude: " + lat + "\\nLongitude: " + lon;
+        document.body.innerHTML = locationText + "<br><br>";
+        document.body.innerHTML += '<button onclick="copyToClipboard(\\'' + locationText + '\\')">Copy Location</button>';
+    }, function(error) {
+        document.body.innerHTML = "error";
+    });
+    </script>
+    """
+    components.html(js_code, height=100)
+
+# Fallback to IP-based geolocation using ipinfo.io
+def get_ipinfo_location():
+    try:
+        response = requests.get("https://ipinfo.io/json")
+        data = response.json()
+        if 'loc' in data:
+            latitude, longitude = data['loc'].split(',')
             return latitude, longitude
         else:
-            st.error("Could not fetch location from Google Geolocation API.")
+            st.error("Could not fetch location from IP info.")
             return None, None
     except Exception as e:
-        st.error(f"Error fetching location: {str(e)}")
+        st.error(f"Error fetching location from IP info: {str(e)}")
         return None, None
+
+# Main location function
+def get_location():
+    st.write("Fetching your location from browser using HTML5 Geolocation...")
+
+    # Display location in the browser
+    show_browser_location()
+
+    # Prompt user to manually input the displayed location
+    st.write("If your browser shows your latitude and longitude above, you can copy them using the 'Copy Location' button, then paste them below.")
+    latitude = st.text_input("Enter your latitude (paste from clipboard)", "")
+    longitude = st.text_input("Enter your longitude (paste from clipboard)", "")
+
+    # If the user did not input values, fall back to IP-based geolocation
+    if not latitude or not longitude:
+        st.warning("Could not fetch location via browser. Trying IP-based geolocation...")
+        latitude, longitude = get_ipinfo_location()
+    
+    return latitude, longitude
 
 # Function to find nearby doctors using Google Places API
 def find_nearby_doctors(location, radius=20000):
