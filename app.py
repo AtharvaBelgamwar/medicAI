@@ -8,17 +8,14 @@ import google.generativeai as genai
 from PIL import Image
 import tempfile
 import json
+
 # Set up environment variables from Streamlit Secrets
-# Streamlit will automatically handle these once set in the Secrets section of the cloud deployment
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Use the Google Cloud Vision API client by securely loading the service account JSON from Streamlit Secrets
 def get_vision_client():
     # Convert the service account info into a dictionary
-    service_account_info = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
-
-    # Ensure the private key has proper newlines
-    service_account_info['private_key'] = service_account_info['private_key'].replace("\\n", "\n")
+    service_account_info = json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
 
     # Create Google Cloud Vision credentials from the service account info
     credentials = service_account.Credentials.from_service_account_info(service_account_info)
