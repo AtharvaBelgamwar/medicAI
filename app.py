@@ -25,14 +25,20 @@ client = get_vision_client()
 
 # Fetch the current latitude and longitude using ipinfo.io
 def get_location():
+    url = f"https://www.googleapis.com/geolocation/v1/geolocate?key={google_places_api_key}"
+    
     try:
-        response = requests.get("https://ipinfo.io/json")
+        # Send a request to Google Geolocation API
+        response = requests.post(url, json={})
         data = response.json()
-        if 'loc' in data:
-            latitude, longitude = data['loc'].split(',')
+
+        # Extract latitude and longitude from the response
+        if 'location' in data:
+            latitude = data['location']['lat']
+            longitude = data['location']['lng']
             return latitude, longitude
         else:
-            st.error("Could not fetch location. Try entering it manually.")
+            st.error("Could not fetch location from Google Geolocation API.")
             return None, None
     except Exception as e:
         st.error(f"Error fetching location: {str(e)}")
