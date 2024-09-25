@@ -7,12 +7,20 @@ import google.generativeai as genai
 from PIL import Image
 import tempfile
 
-# Set up environment variables
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r'C:\Users\Lenovo\Downloads\medicai-436704-1e3a7b8c6ab1.json'
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+# Set up environment variables from Streamlit Secrets
+# Streamlit will automatically handle these once set in the Secrets section of the cloud deployment
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+# Use the Google Cloud Vision API client by securely loading the service account JSON from Streamlit Secrets
+def get_vision_client():
+    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.json') as temp_file:
+        temp_file.write(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+        temp_file_path = temp_file.name
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_file_path
+    return vision.ImageAnnotatorClient()
 
 # Initialize the Vision API client
-client = vision.ImageAnnotatorClient()
+client = get_vision_client()
 
 # Preprocess the image using OpenCV
 def preprocess_image(image_path):
@@ -74,7 +82,7 @@ if uploaded_file is not None:
            
             # Prompt for Gemini API
             prompt = (
-                f"Here is a medical report: {cleaned_text}. Consider this for only testing purpose only. "
+                f"Here is a medical report: {cleaned_text}. Consider this for only testing purposes only. "
                 "Please tell only what has happened to the patient and the medication, don't include patient details in your response. "
                 "Also, suggest some medications other than the doctor's. "
                 "Include any important advice given by the doctor."
@@ -85,7 +93,6 @@ if uploaded_file is not None:
             gemini_response = model.generate_content(prompt)
 
             # Print the response from the Gemini API
-           
             st.write(gemini_response.text)
 
         else:
