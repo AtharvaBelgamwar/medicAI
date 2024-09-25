@@ -59,7 +59,7 @@ def find_nearby_doctors(location, radius=20000):
 def preprocess_image(image_path):
     image = Image.open(image_path)
     gray_image = image.convert('L')  # Convert to grayscale
-    gray_image.save(image_path)
+    gray_image.save(image_path+ ".jpg" )
     return image_path
 
 # Function to display doctors as clickable cards
