@@ -1,5 +1,8 @@
 streamlit
 opencv-python-headless
-Pillow
+pillow
 google-cloud-vision
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
 google-generativeai
