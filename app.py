@@ -188,7 +188,7 @@ if submitted:
 
         # Fetch and display the current location
         latitude, longitude = get_location()
-
+        st.write(f"Latitude: {latitude}, Longitude: {longitude}")
         if latitude and longitude:
 
             # Find and display nearby doctors
