@@ -14,13 +14,17 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Use the Google Cloud Vision API client by securely loading the service account JSON from Streamlit Secrets
 def get_vision_client():
-    # Directly use the service account info from Streamlit secrets (no need for json.loads)
+    # Get service account info from Streamlit secrets
     service_account_info = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
 
-    # Create Google Cloud Vision credentials from the service account info
+    # Fix the private key formatting (ensure proper newlines)
+    if "private_key" in service_account_info:
+        service_account_info["private_key"] = service_account_info["private_key"].replace("\\n", "\n")
+    
+    # Create Google Cloud Vision credentials
     credentials = service_account.Credentials.from_service_account_info(service_account_info)
     
-    # Create and return the Vision API client using the credentials
+    # Initialize the Vision API client with the credentials
     return vision.ImageAnnotatorClient(credentials=credentials)
 
 # Initialize the Vision API client
