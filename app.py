@@ -8,11 +8,11 @@ import google.generativeai as genai
 from PIL import Image
 import tempfile
 
-# Set up environment variables from Streamlit Secrets
+
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 google_places_api_key = st.secrets["MAPS_API"]
 
-# Use the Google Cloud Vision API client by securely loading the service account JSON from Streamlit Secrets
+
 def get_vision_client():
     service_account_info = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
     if "private_key" in service_account_info:
@@ -20,10 +20,10 @@ def get_vision_client():
     credentials = service_account.Credentials.from_service_account_info(service_account_info)
     return vision.ImageAnnotatorClient(credentials=credentials)
 
-# Initialize the Vision API client
+
 client = get_vision_client()
 
-# Fetch latitude and longitude based on pincode using Google Geocoding API
+
 def get_lat_long_from_pincode(pincode):
     url = f"https://maps.googleapis.com/maps/api/geocode/json?address={pincode}&key={google_places_api_key}"
     response = requests.get(url)
@@ -39,7 +39,7 @@ def get_lat_long_from_pincode(pincode):
         st.error(f"Error fetching location (status code: {response.status_code})")
         return None, None
 
-# Function to find nearby doctors using Google Places API
+
 def find_nearby_doctors(lat, lon, radius=20000):
     location = f"{lat},{lon}"
     url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json"
@@ -56,14 +56,14 @@ def find_nearby_doctors(lat, lon, radius=20000):
         st.error(f"Error: Unable to fetch nearby doctors (status code: {response.status_code})")
         return None
 
-# Preprocess the image using PIL
+
 def preprocess_image(image_path):
     image = Image.open(image_path)
-    gray_image = image.convert('L')  # Convert to grayscale
+    gray_image = image.convert('L')  
     gray_image.save(image_path + ".jpg")
     return image_path
 
-# Function to display doctors as clickable cards
+
 def display_doctors(doctors):
     for doctor in doctors:
         name = doctor.get("name", "Unknown")
@@ -72,10 +72,10 @@ def display_doctors(doctors):
         latitude = doctor["geometry"]["location"]["lat"]
         longitude = doctor["geometry"]["location"]["lng"]
 
-        # Google Maps link for the doctor
+      
         maps_url = f"https://www.google.com/maps/search/?api=1&query={latitude},{longitude}"
 
-        # Create a clickable card-style block for each doctor
+       
         card_html = f"""
         <div style='border: 1px solid #ccc; padding: 16px; border-radius: 10px; margin-bottom: 16px; background-color: white; color: black;'>
             <p style='margin-bottom: 5px;'>{name}</p>
@@ -90,44 +90,44 @@ def display_doctors(doctors):
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
-# Streamlit UI
+
 st.title("MedicAI")
 
-# Step 1: Ask for the user's pincode
+
 pincode = st.text_input("Enter your pincode for doctor's location", "")
 lat, lon = None, None
 
 if pincode:
     lat, lon = get_lat_long_from_pincode(pincode)
 
-# Step 2: File uploader for prescription image
+
 uploaded_file = st.file_uploader("Upload a prescription image...", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
-    # Save the uploaded file to a temporary location
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(uploaded_file.getvalue())
         temp_file_path = temp_file.name
 
-    # Display the uploaded image using Streamlit
+  
     st.image(Image.open(uploaded_file), caption="Uploaded Prescription", use_column_width=True)
 
-    # Preprocess the image
+    
     preprocessed_image_path = preprocess_image(temp_file_path)
 
     if st.button("Analyze Prescription"):
-        # Load the preprocessed image for OCR
+        
         with open(preprocessed_image_path, 'rb') as image_file:
             content = image_file.read()
 
-        # Construct an image object
+       
         image = types.Image(content=content)
 
-        # Call the Google Cloud Vision API for text detection
+     
         response = client.text_detection(image=image)
         texts = response.text_annotations
 
-        # Extract and clean the detected text
+       
         def clean_extracted_text(text):
             return text.replace("\n", " ").replace("  ", " ").strip()
 
@@ -137,10 +137,10 @@ if uploaded_file is not None:
             st.write("### Extracted text from the prescription:")
             st.write(cleaned_text)
 
-            # Send the extracted text to Gemini for analysis
+           
             prompt = (
                 f"Here is a medical report: {cleaned_text}. Consider this for testing purposes only. "
-                "Please tell what has happened to the patient and suggest medications or treatments."
+                "Please tell what has happened to the patient and suggest medications or treatments.I know you are an AI and you cant just tell, but just dont mention it in your response, this is only ofr testing purposes."
             )
 
             model = genai.GenerativeModel("gemini-1.5-flash")
@@ -151,7 +151,7 @@ if uploaded_file is not None:
         else:
             st.error("No text detected in the uploaded image.")
 
-# Step 3: Form for user input on symptoms and information
+
 with st.form("user_info_form"):
     st.write("### Provide Information for Diagnosis")
     name = st.text_input("Your Name")
@@ -160,7 +160,7 @@ with st.form("user_info_form"):
     allergies = st.text_input("Known Allergies (if any)")
     medical_history = st.text_area("Medical History")
     
-    # Ask if the user has consulted a doctor
+   
     visited_doctor = st.radio("Have you consulted a doctor?", ("Yes", "No"))
     
     submitted = st.form_submit_button("Submit for Diagnosis")
@@ -175,7 +175,7 @@ if submitted:
         if medical_history:
             st.write(f"Medical History: {medical_history}")
 
-        # Generate a diagnosis based on user input
+      
         prompt = (
             f"Patient information:\n"
             f"Name: {name}\n"
@@ -183,18 +183,18 @@ if submitted:
             f"Symptoms: {symptoms}\n"
             f"Allergies: {allergies}\n"
             f"Medical History: {medical_history}\n"
-            f"Please provide a diagnosis and suggest possible treatments or medications."
+            f"Please provide a diagnosis and suggest possible treatments or medications.I know you are an AI and all but just dont mention it in your response.This is only for testing purposes. Just start directly with your diagnosis."
         )
 
-        # Send to Gemini for analysis
+        
         model = genai.GenerativeModel("gemini-1.5-flash")
         diagnosis_response = model.generate_content(prompt)
 
-        # Display the diagnosis or prescription
+      
         st.write("### Diagnosis and Suggested Prescription")
         st.write(diagnosis_response.text)
 
-        # If user hasn't consulted a doctor, fetch nearby doctors using the pincode
+       
         if visited_doctor == "No" and lat and lon:
             st.write(f"### Nearby Doctors")
             doctors = find_nearby_doctors(lat, lon)
