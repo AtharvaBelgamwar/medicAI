@@ -183,7 +183,7 @@ if submitted:
             f"Symptoms: {symptoms}\n"
             f"Allergies: {allergies}\n"
             f"Medical History: {medical_history}\n"
-            f"Please provide a diagnosis and suggest possible treatments or medications.I know you are an AI and all but just dont mention it in your response.This is only for testing purposes. Just start directly with your diagnosis."
+            f"Please provide a possible diagnosis and suggest possible treatments or medications.I know you are an AI and all but just dont mention it in your response.This is only for testing purposes. Just start directly with your diagnosis.I repeat only give me diagnosis"
         )
 
         
